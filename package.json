@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "deploy": "npx hardhat run --network localhost scripts/00_deploye_entrypoint.js",
+    "deploy": "npx hardhat run --network localhost scripts/00_deploy_entrypoint.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
