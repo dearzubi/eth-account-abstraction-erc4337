@@ -1,34 +1,35 @@
 
 import hre from "hardhat";
+import config from "../config/config.js";
 
-export const deployPaymaster = async (entryPointAddress) => {
+export const deployPaymaster = async () => {
   
   const SponsoringPaymaster = await hre.ethers.getContractFactory("SponsoringPaymaster");
-  const sponsoringPaymaster = await SponsoringPaymaster.deploy(entryPointAddress);
+  const sponsoringPaymaster = await SponsoringPaymaster.deploy(config.get("ENTRYPOINT_ADDRESS"));
   await sponsoringPaymaster.deployed();
   await sponsoringPaymaster.addStake(
-    parseInt(process.env.PAYMASTER_UNSTAKE_DELAY_SEC), 
-    {value: hre.ethers.utils.parseEther(process.env.PAYMASTER_STAKE)}
+    config.get("PAYMASTER_UNSTAKE_DELAY_SEC"), 
+    {value: hre.ethers.utils.parseEther(config.get("PAYMASTER_STAKE").toString())}
   );
   await sponsoringPaymaster.deposit(
-    {value: hre.ethers.utils.parseEther(process.env.PAYMASTER_DEPOSIT)}
+    {value: hre.ethers.utils.parseEther(config.get("PAYMASTER_DEPOSIT").toString())}
   );
 
   let signerRoleHash = "";
   let signers = [];
   let signerRoles = [];
 
-  if(process.env.PAYMASTER_ENABLE_SIGNATURE_VERIFICATION == 'true') {
+  if(config.get("PAYMASTER_ENABLE_SIGNATURE_VERIFICATION")) {
 
     await sponsoringPaymaster.setIsSigRequired(true);
     signerRoleHash = (await sponsoringPaymaster.SIGNER_ROLE()).toString();
-    signers = process.env.PAYMASTER_SIGNERS.split(',');
+    signers = config.get("PAYMASTER_SIGNERS").split(',');
     signerRoles = signers.map((address) => signerRoleHash);
 
   }
 
   const whitelistHash = (await sponsoringPaymaster.WHITELISTED()).toString();
-  const whitelist = process.env.PAYMASTER_WHITELIST.split(',');
+  const whitelist = config.get("PAYMASTER_WHITELIST").split(',');
   const whiteListRoles = whitelist.map((address) => whitelistHash);
 
   const roles = [...signerRoles, ...whiteListRoles];
@@ -38,11 +39,7 @@ export const deployPaymaster = async (entryPointAddress) => {
 
   await sponsoringPaymaster.setBatchRoles(addresses,roles,revoke);
 
-  console.log(
-    "SponsoringPaymaster deployed to:", sponsoringPaymaster.address
-  );
-
-  return sponsoringPaymaster.address;
+  config.update("PAYMASTER_ADDRESS", sponsoringPaymaster.address);
 
 }
 

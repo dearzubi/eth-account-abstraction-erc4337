@@ -1,4 +1,5 @@
 import hre from "hardhat";
+import config from "../config/config.js";
 
 export const deployEntryPoint = async () => {
   
@@ -7,10 +8,5 @@ export const deployEntryPoint = async () => {
 
   await entryPoint.deployed();
 
-  console.log(
-    "EntryPoint deployed to:", entryPoint.address
-  );
-
-  return entryPoint.address;
-
+  config.update("ENTRYPOINT_ADDRESS", entryPoint.address);
 }

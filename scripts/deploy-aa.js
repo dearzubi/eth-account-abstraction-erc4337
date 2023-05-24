@@ -3,10 +3,12 @@ dotenv.config();
 
 import {deployEntryPoint} from "./00_deploy_entrypoint.js";
 import {deployPaymaster} from "./01_deploy_paymaster.js";
+import {deploySimpleAccountFactory} from "./02_deploy_simple_account_factory.js";
 
 const main = async () => {
-  const entryPointAddress = await deployEntryPoint()
-  await deployPaymaster(entryPointAddress);
+  await deployEntryPoint()
+  await deployPaymaster();
+  await deploySimpleAccountFactory();
 }
 
 // We recommend this pattern to be able to use async/await everywhere
