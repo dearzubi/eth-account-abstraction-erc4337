@@ -19,58 +19,75 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
 
     bytes32 public constant SIGNER_ROLE = keccak256("SIGNER_ROLE");
     bytes32 public constant WHITELISTED = keccak256("WHITELISTED");
+    bytes32 public constant BLACKLISTED = keccak256("BLACKLISTED");
 
-    bool public isSigRequired = true;
+    bool public isSigRequired;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = 20;
-
     uint256 private constant SIGNATURE_OFFSET = 84;
+
+    uint256 private constant ADDRESS_OFFSET = 4;
+    uint256 private constant VALUE_OFFSET = 36;
 
     mapping(address => uint256) public senderNonce;
 
-    constructor(IEntryPoint _entryPoint, address[] memory _signers) BasePaymaster(_entryPoint) {
-
-        require(_signers.length > 0, "at least one signer is required");
-
-        for(uint i = 0; i < _signers.length; i++) {
-
-            if(hasRole(SIGNER_ROLE, _signers[i]) || _signers[i] == address(0)) {
-                continue;
-            }
-
-            _grantRole(SIGNER_ROLE, _signers[i]);
-        }
-
+    /**
+     * @dev constructor for SponsoringPaymaster
+     * @param _entryPoint entry point contract
+     */
+    constructor(IEntryPoint _entryPoint) BasePaymaster(_entryPoint) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function whiteListAddress(address _address) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        grantRole(WHITELISTED, _address);
+    /**
+     * @dev Assign or revoke roles to addresses in batch
+     * @param _address List of addresses to set roles to
+     * @param _roles List of roles to set
+     * @param revoke List of booleans. if true, revoke the respective role to respective address in the list. otherwise grant it.
+     */
+    function setBatchRoles(address[] calldata _address, bytes32[] calldata _roles, bool[] calldata revoke) 
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+
+        require(_address.length == _roles.length && _address.length == revoke.length, "invalid input");
+
+        for(uint i = 0; i < _address.length; i++) {
+
+            if(_address[i] == address(0)) continue;
+            _setRoleToAddress(_roles[i], _address[i], revoke[i]);
+        }
+
     }
 
-    function unWhiteListAddress(address _address) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        revokeRole(WHITELISTED, _address);
+    /**
+     * @dev Assign or revoke a role to an address
+     * @param _role Role to set. e.g WHITELISTED, BLACKLISTED, SIGNER_ROLE
+     * @param _address Address to set role to
+     * @param revoke If true, revoke the role. otherwise grant it.
+     */
+    function setRoleToAddress(bytes32 _role, address _address, bool revoke) external onlyRole(DEFAULT_ADMIN_ROLE) {
+
+        require(_address != address(0), "invalid address");
+
+        _setRoleToAddress(_role, _address, revoke);
+    }
+
+    /**
+     * @dev Assign or revoke a role to an address
+     * @param _role Role to set. e.g WHITELISTED, BLACKLISTED, SIGNER_ROLE
+     * @param _address Address to set role to
+     * @param revoke If true, revoke the role. otherwise grant it.
+     */
+    function _setRoleToAddress(bytes32 _role, address _address, bool revoke) internal {
+
+        if(revoke && hasRole(_role, _address)) revokeRole(_role, _address);
+        else if(!revoke && !hasRole(_role, _address)) grantRole(_role, _address);
+        
     }
 
     function setIsSigRequired(bool _val) external onlyRole(DEFAULT_ADMIN_ROLE){
         isSigRequired = _val;
-    }
-
-    function pack(UserOperation calldata userOp) internal pure returns (bytes memory ret) {
-        // lighter signature scheme. must match UserOp.ts#packUserOp
-        bytes calldata pnd = userOp.paymasterAndData;
-        // copy directly the userOp from calldata up to (but not including) the paymasterAndData.
-        // this encoding depends on the ABI encoding of calldata, but is much lighter to copy
-        // than referencing each field separately.
-        assembly {
-            let ofs := userOp
-            let len := sub(sub(pnd.offset, ofs), 32)
-            ret := mload(0x40)
-            mstore(0x40, add(ret, add(len, 32)))
-            mstore(ret, len)
-            calldatacopy(add(ret, 32), ofs, len)
-
-        }
     }
 
     /**
@@ -79,12 +96,15 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
      * it is called on-chain from the validatePaymasterUserOp, to validate the signature.
      * note that this signature covers all fields of the UserOperation, except the "paymasterAndData",
      * which will carry the signature itself.
+     * Note: This function is taken from:
+     * https://github.com/eth-infinitism/account-abstraction/blob/9b5f2e4bb30a81aa30761749d9e2e43fee64c768/contracts/samples/VerifyingPaymaster.sol
+     * and then slightly modified.
      */
     function getHash(UserOperation calldata userOp, uint48 validUntil, uint48 validAfter)
     public view returns (bytes32) {
         //can't use userOp.hash(), since it contains also the paymasterAndData itself.
         return keccak256(abi.encode(
-                pack(userOp),
+                userOp.packWithoutPaymasterAndData(),
                 block.chainid,
                 address(this),
                 senderNonce[userOp.getSender()],
@@ -99,6 +119,9 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
      * paymasterAndData[:20] : address(this)
      * paymasterAndData[20:84] : abi.encode(validUntil, validAfter)
      * paymasterAndData[84:] : signature
+     * Note: This function is taken from:
+     * https://github.com/eth-infinitism/account-abstraction/blob/9b5f2e4bb30a81aa30761749d9e2e43fee64c768/contracts/samples/VerifyingPaymaster.sol
+     * and then modified.
      */
     function _validatePaymasterUserOp(
         UserOperation calldata userOp, 
@@ -109,36 +132,70 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
         override 
         returns (bytes memory context, uint256 validationData) 
     {
-        (requiredPreFund);
+        (requiredPreFund); //unused
 
-        (uint48 validUntil, uint48 validAfter, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
-        //ECDSA library supports both 64 and 65-byte long signatures.
-        // we only "require" it here so that the revert reason on invalid signature will be of "SponsoringPaymaster", and not "ECDSA"
-        require(signature.length == 64 || signature.length == 65, "SponsoringPaymaster: invalid signature length in paymasterAndData");
-        bytes32 hash = ECDSA.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
-        senderNonce[userOp.getSender()]++;
+        bool passed = !hasRole(BLACKLISTED, userOp.getSender()) && isToAddressWhiteListed(userOp.callData);
 
-        if(
-            !checkWhiteListedContract(userOp.callData) || 
-            ((isSigRequired) && !hasRole(SIGNER_ROLE, ECDSA.recover(hash, signature)))
-        ){
+        if(isSigRequired) {
+
+            (uint48 validUntil, uint48 validAfter, bytes calldata signature) = parsePaymasterAndData(userOp.paymasterAndData);
+            //ECDSA library supports both 64 and 65-byte long signatures.
+            // we only "require" it here so that the revert reason on invalid signature will be of "SponsoringPaymaster", and not "ECDSA"
+            require(signature.length == 64 || signature.length == 65, "SponsoringPaymaster: invalid signature length in paymasterAndData");
+            bytes32 hash = ECDSA.toEthSignedMessageHash(getHash(userOp, validUntil, validAfter));
+            senderNonce[userOp.getSender()]++;
+
+            passed = passed && hasRole(SIGNER_ROLE, ECDSA.recover(hash, signature));
+
+            if(passed){
+                return ("",_packValidationData(false,validUntil,validAfter));
+            }
             return ("",_packValidationData(true,validUntil,validAfter));
+
         }
 
-        //no need for other on-chain validation: entire UserOp should have been checked
-        // by the external service prior to signing it.
-        return ("",_packValidationData(false,validUntil,validAfter));
-    }
+        if(passed){
+            return ("",_packValidationData(false,0,0));
+        }
+        return ("",_packValidationData(true,0,0));
 
-    function parsePaymasterAndData(bytes calldata paymasterAndData) public pure returns(uint48 validUntil, uint48 validAfter, bytes calldata signature) {
+    }
+    /**
+     * @dev parses the paymasterAndData field of the userOp
+     * @param paymasterAndData the paymasterAndData field of the userOp
+     * @return validUntil
+     * @return validAfter 
+     * @return signature 
+     * Note: This function expects paymasterAndData field is of the following format:
+     * paymasterAndData[:20] : address(this)
+     * paymasterAndData[20:84] : abi.encode(validUntil, validAfter)
+     * paymasterAndData[84:] : signature
+     */
+
+    function parsePaymasterAndData(bytes calldata paymasterAndData) 
+        public 
+        pure 
+        returns
+        (
+            uint48 validUntil, 
+            uint48 validAfter, 
+            bytes calldata signature
+        ) 
+    {
         (validUntil, validAfter) = abi.decode(paymasterAndData[VALID_TIMESTAMP_OFFSET:SIGNATURE_OFFSET],(uint48, uint48));
         signature = paymasterAndData[SIGNATURE_OFFSET:];
     }
 
 
-    function checkWhiteListedContract(bytes calldata _calldata) internal view returns (bool) {
+    /**
+     * @dev check if the TO address in the calldata is whitelisted
+     * @param _calldata the calldata of the userOp
+     * Note: This function expects that the calldata is encoded in the form: somefunction(address,uint256,bytes)
+     * 
+     */
+    function isToAddressWhiteListed(bytes calldata _calldata) internal view returns (bool) {
         
-        return hasRole(WHITELISTED, abi.decode(_calldata[4:24], (address)));
+        return hasRole(WHITELISTED, abi.decode(_calldata[ADDRESS_OFFSET:VALUE_OFFSET], (address)));
         
     }
 
