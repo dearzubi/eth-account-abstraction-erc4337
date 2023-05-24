@@ -5,17 +5,21 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "deploy": "npx hardhat run --network localhost scripts/00_deploy_entrypoint.js",
+    "deploy": "npx hardhat run --network localhost scripts/deploy.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2",
     "hardhat": "^2.14.0"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.3",
+    "hardhat-deploy": "^0.11.29",
     "userop": "^0.2.0"
   }
 }

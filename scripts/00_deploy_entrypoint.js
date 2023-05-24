@@ -1,7 +1,7 @@
 import hre from "hardhat";
 
-const main = async () => {
-
+export const deployEntryPoint = async () => {
+  
   const EntryPoint = await hre.ethers.getContractFactory("EntryPoint");
   const entryPoint = await EntryPoint.deploy();
 
@@ -10,11 +10,7 @@ const main = async () => {
   console.log(
     "EntryPoint deployed to:", entryPoint.address
   );
-}
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+  return entryPoint.address;
+
+}
