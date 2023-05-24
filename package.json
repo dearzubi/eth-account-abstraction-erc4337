@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "deploy": "npx hardhat run --network localhost scripts/deploy.js",
+    "deploy-token": "npx hardhat run --network localhost scripts/deploy-token.js",
+    "deploy-aa": "npx hardhat run --network localhost scripts/deploy-aa.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
