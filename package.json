@@ -20,7 +20,6 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.3",
-    "hardhat-deploy": "^0.11.29",
     "userop": "^0.2.0"
   }
 }
