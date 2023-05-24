@@ -10,6 +10,7 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
 /**
  * SponsoringPaymaster pays for the UserOp if following conditions are met:
  * - The "to" (the address of the actual execution call) address must be whitelisted.
+ * - The userOp sender must not be blacklisted.
  * - If "isSigRequired" is true then userOp.paymasterAndData must contain a signature from a trusted signer.
  * - The trusted signer must have "SIGNER_ROLE" in this contract. 
 */
