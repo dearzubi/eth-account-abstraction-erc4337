@@ -9,5 +9,6 @@ export const deploySimpleAccountFactory = async () => {
   await simpleAccountFactory.deployed();
 
   config.update("ACCOUNT_FACTORY_ADDRESS", simpleAccountFactory.address);
+  config.updateABI("ACCOUNT_FACTORY", SimpleAccountFactory.interface.format("json"));
 
 }

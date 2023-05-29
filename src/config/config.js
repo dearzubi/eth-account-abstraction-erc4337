@@ -1,4 +1,5 @@
 import config from './config.json' assert { type: "json" };
+import abi from './abi.json' assert { type: "json" };
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -14,7 +15,17 @@ export const update = (key, value) => {
 
 }
 
+export const updateABI = (key, value) => {
+
+    abi[key] = value;
+
+    fs.writeFileSync(path.join(__dirname,`/abi.json`), JSON.stringify(abi, null, 2));
+
+}
+
 export default {
     get: (key) => config[key],
-    update: update
+    update: update,
+    getABI: (key) => abi[key],
+    updateABI: updateABI
 };

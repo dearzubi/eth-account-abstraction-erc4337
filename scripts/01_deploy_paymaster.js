@@ -40,6 +40,7 @@ export const deployPaymaster = async () => {
   await sponsoringPaymaster.setBatchRoles(addresses,roles,revoke);
 
   config.update("PAYMASTER_ADDRESS", sponsoringPaymaster.address);
+  config.updateABI("PAYMASTER", SponsoringPaymaster.interface.format("json"));
 
 }
 
