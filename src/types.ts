@@ -2,6 +2,10 @@ import { BigNumberish, BytesLike } from "ethers";
 
 export type GasFee = {[key: string]: string} | string;
 
+export enum AccountTypes {
+  Simple = 'Simple'
+};
+
 export interface GasEstimate {
   preVerificationGas: BigNumberish;
   verificationGas: BigNumberish;
