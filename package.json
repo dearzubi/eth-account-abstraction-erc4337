@@ -3,23 +3,27 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module",
   "scripts": {
-    "deploy-token": "npx hardhat run --network localhost scripts/deploy-token.js",
-    "deploy-aa": "npx hardhat run --network localhost scripts/deploy-aa.js",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "compile": "npx hardhat compile --no-typechain",
+    "deploy-token": "npx hardhat run --network localhost dist/src/deploy/deploy-token.js",
+    "deploy-aa": "npx hardhat run --network localhost dist/src/deploy/deploy-aa.js",
+    "deploy": "npm run compile && npm run deploy-token && npm run deploy-aa",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
-    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
+    "@types/node": "^20.2.5",
     "dotenv": "^16.0.3",
-    "ethers": "^5.7.2",
-    "hardhat": "^2.14.0"
+    "hardhat": "^2.14.0",
+    "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.3",
+    "@openzeppelin/contracts": "^4.9.0",
+    "ethers": "^5.7.2",
     "userop": "^0.2.0"
   }
 }
