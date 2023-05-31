@@ -1,9 +1,9 @@
-import hre from "hardhat";
-import config from "../config/config.js";
+import {ethers} from "hardhat";
+import config from "../config/config";
 
 export const deploySimpleAccountFactory = async () => {
   
-  const SimpleAccountFactory = await hre.ethers.getContractFactory("SimpleAccountFactory");
+  const SimpleAccountFactory = await ethers.getContractFactory("SimpleAccountFactory");
   const simpleAccountFactory = await SimpleAccountFactory.deploy(config.get("ENTRYPOINT_ADDRESS"));
 
   await simpleAccountFactory.deployed();

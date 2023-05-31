@@ -1,9 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config();
-
-import {deployEntryPoint} from "./00_deploy_entrypoint.js";
-import {deployPaymaster} from "./01_deploy_paymaster.js";
-import {deploySimpleAccountFactory} from "./02_deploy_simple_account_factory.js";
+import {deployEntryPoint} from "./00_deploy_entrypoint";
+import {deployPaymaster} from "./01_01_deploy_paymaster";
+import {deploySimpleAccountFactory} from "./02_deploy_simple_account_factory";
 
 const main = async () => {
   await deployEntryPoint()

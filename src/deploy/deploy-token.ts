@@ -1,15 +1,15 @@
-import hre from "hardhat";
+import {ethers} from "hardhat";
+import config from "../config/config";
 
 export const deployToken = async () => {
   
-  const ZZKT = await hre.ethers.getContractFactory("ZZKT");
+  const ZZKT = await ethers.getContractFactory("ZZKT");
   const zzkt = await ZZKT.deploy(10**6);
 
   await zzkt.deployed();
 
-  console.log(
-    "Token ZZKT deployed to:", zzkt.address
-  );
+  config.update("TOKEN_ADDRESS", zzkt.address);
+  config.updateABI("TOKEN", ZZKT.interface.format("json"));
 
 }
 

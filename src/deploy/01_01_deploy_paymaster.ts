@@ -1,35 +1,38 @@
 
-import hre from "hardhat";
-import config from "../config/config.js";
+import {ethers} from "hardhat";
+import config from "../config/config";
+import {setPaymasterWhiteList} from "./01_00_whitelist";
 
 export const deployPaymaster = async () => {
+
+  setPaymasterWhiteList();
   
-  const SponsoringPaymaster = await hre.ethers.getContractFactory("SponsoringPaymaster");
+  const SponsoringPaymaster = await ethers.getContractFactory("SponsoringPaymaster");
   const sponsoringPaymaster = await SponsoringPaymaster.deploy(config.get("ENTRYPOINT_ADDRESS"));
   await sponsoringPaymaster.deployed();
   await sponsoringPaymaster.addStake(
     config.get("PAYMASTER_UNSTAKE_DELAY_SEC"), 
-    {value: hre.ethers.utils.parseEther(config.get("PAYMASTER_STAKE").toString())}
+    {value: ethers.utils.parseEther(config.get("PAYMASTER_STAKE")!.toString())}
   );
   await sponsoringPaymaster.deposit(
-    {value: hre.ethers.utils.parseEther(config.get("PAYMASTER_DEPOSIT").toString())}
+    {value: ethers.utils.parseEther(config.get("PAYMASTER_DEPOSIT")!.toString())}
   );
 
   let signerRoleHash = "";
-  let signers = [];
-  let signerRoles = [];
+  let signers: string[] = [];
+  let signerRoles: string[] = [];
 
   if(config.get("PAYMASTER_ENABLE_SIGNATURE_VERIFICATION")) {
 
     await sponsoringPaymaster.setIsSigRequired(true);
     signerRoleHash = (await sponsoringPaymaster.SIGNER_ROLE()).toString();
-    signers = config.get("PAYMASTER_SIGNERS").split(',');
+    signers = config.get("PAYMASTER_SIGNERS")!.toString().split(',');
     signerRoles = signers.map((address) => signerRoleHash);
 
   }
 
   const whitelistHash = (await sponsoringPaymaster.WHITELISTED()).toString();
-  const whitelist = config.get("PAYMASTER_WHITELIST").split(',');
+  const whitelist = config.get("PAYMASTER_WHITELIST")!.toString().split(',');
   const whiteListRoles = whitelist.map((address) => whitelistHash);
 
   const roles = [...signerRoles, ...whiteListRoles];

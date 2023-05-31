@@ -1,9 +1,9 @@
-import hre from "hardhat";
-import config from "../config/config.js";
+import {ethers} from "hardhat";
+import config from "../config/config";
 
 export const deployEntryPoint = async () => {
   
-  const EntryPoint = await hre.ethers.getContractFactory("EntryPoint");
+  const EntryPoint = await ethers.getContractFactory("EntryPoint");
   const entryPoint = await EntryPoint.deploy();
 
   await entryPoint.deployed();
