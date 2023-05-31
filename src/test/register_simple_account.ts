@@ -2,26 +2,62 @@
 import config from "../config/config";
 import { ethers } from "ethers";
 import { getEntryPoint } from "../lib/entry_point";
+import {getPaymaster} from "../lib/paymaster";
 import {getAccountFactory, getInitCode, getAccountAddress} from "../lib/account";
 import UserOp from "../lib/user_op";
-import { IUserOperation, AccountTypes} from "../types";
+import {gasFee, estimateWalletCreationGas, estimateUserOpGas} from "../utils/gas";
+import { AccountTypes, IGasFee, GasEstimate} from "../types";
 
 const main = async () => {
 
     const userOp = new UserOp();
 
     const provider = new ethers.providers.JsonRpcProvider(config.get("RPC")!.toString());
-    // const entryPoint = getEntryPoint(provider.getSigner());
+    const erc4337NodeProvider = new ethers.providers.JsonRpcProvider(config.get("BUNDLER_RPC")!.toString());
+    const entryPoint = getEntryPoint(provider.getSigner());
+    // const paymaster = getPaymaster(provider.getSigner());
     const simpleAccountFactory = getAccountFactory(AccountTypes.Simple, provider.getSigner());
 
     const initCode = getInitCode(simpleAccountFactory, (await provider.getSigner().getAddress()));
 
     userOp.setInitCode(initCode);
 
-    const accountAddress = await getAccountAddress(initCode, provider);
+    const walletAddress = await getAccountAddress(initCode, provider);
 
-    userOp.setSender(accountAddress);
+    userOp.setSender(walletAddress);
 
+    entryPoint.depositTo(walletAddress, {value: ethers.utils.parseEther("0.5")});
+
+    userOp.setNonce((await entryPoint.callStatic.getNonce(walletAddress, 0)).toNumber());
+
+    userOp.setSignature(
+        (await provider.getSigner().signMessage(
+                ethers.utils.arrayify(ethers.utils.keccak256("0xdead"))
+        ))
+    );
+
+    const gF = await gasFee(provider) as IGasFee;
+
+    userOp.setMaxFeePerGas(gF.maxFee);
+    userOp.setMaxPriorityFeePerGas(gF.maxPriorityFee);
+
+    userOp.incVerificationGasLimit((await estimateWalletCreationGas(provider, initCode)));
+
+    const est = await estimateUserOpGas(erc4337NodeProvider, userOp.toJSON(), entryPoint.address) as GasEstimate;
+
+    userOp.setVerificationGasLimit(est.verificationGas);
+    userOp.setCallGasLimit(est.callGasLimit);
+    userOp.setPreVerificationGas(est.preVerificationGas);
+
+    const userOpHash = await entryPoint.callStatic.getUserOpHash(userOp.toJSON());
+
+    userOp.setSignature(
+        (await provider.getSigner().signMessage(
+                ethers.utils.arrayify(userOpHash)
+        ))
+    );
+
+    console.log(userOp.get());
 
 }
 
@@ -30,14 +66,6 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
-
-
-
-// userOp.nonce = (await entryPoint.getNonce(userOp.sender, 0)).toNumber();
-
-// userOp.signature = await provider.getSigner().signMessage(
-//     ethers.utils.arrayify(ethers.utils.keccak256("0xdead"))
-// ),
 
 
 // console.log(await eip1559GasPrice(provider))
