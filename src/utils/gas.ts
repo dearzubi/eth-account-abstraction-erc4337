@@ -27,13 +27,13 @@ export const gasFee = async (
 export const estimateWalletCreationGas = async (
   provider: ethers.providers.JsonRpcProvider,
   initCode: ethers.BytesLike
-): Promise<ethers.BigNumber> => {
+): Promise<string> => {
   
   const initCodeHex = ethers.utils.hexlify(initCode);
-  return await provider.estimateGas({
+  return (await provider.estimateGas({
     to: initCodeHex.substring(0, 42),
     data: "0x" + initCodeHex.substring(42),
-  });
+  })).toHexString()
 
 };
 
@@ -42,14 +42,10 @@ export const estimateUserOpGas = async (
   erc4337NodeProvider: ethers.providers.JsonRpcProvider,
   userOp: IUserOperation,
   entryPoint: string
-): Promise<IUserOperation> => {
+): Promise<GasEstimate> => {
 
   const estimate = (await erc4337NodeProvider.send("eth_estimateUserOperationGas", [userOp, entryPoint]
   )) as GasEstimate;
 
-  userOp.preVerificationGas = estimate.preVerificationGas;
-  userOp.verificationGasLimit = estimate.verificationGas;
-  userOp.callGasLimit = estimate.callGasLimit;
-
-  return userOp;
+  return estimate;
 }
