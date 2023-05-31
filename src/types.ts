@@ -1,6 +1,11 @@
 import { BigNumberish, BytesLike } from "ethers";
 
-export type GasFee = {[key: string]: string} | string;
+export interface IGasFee {
+  maxFee: string;
+  maxPriorityFee: string;
+}
+
+export type GasFee = IGasFee | string;
 
 export enum AccountTypes {
   Simple = 'Simple'
