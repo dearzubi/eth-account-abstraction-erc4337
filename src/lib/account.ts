@@ -29,8 +29,8 @@ export const getAccountFactory = (
 
     case AccountTypes.Simple:
       return new ethers.Contract(
-        config.get("ACCOUNT_FACTORY_ADDRESS")!.toString(),
-        config.getABI("ACCOUNT_FACTORY")!,
+        config.get("SIMPLE_ACCOUNT_FACTORY_ADDRESS")!.toString(),
+        config.getABI("SIMPLE_ACCOUNT_FACTORY")!,
         providerOrSigner
     );
 
