@@ -85,25 +85,24 @@ library UserOperationLib {
      * @dev returns bytes representation of the userOp struct excluyding the paymasterAndData field.
      * @param userOp the userOp struct to pack
      * @return ret in bytes
-     * Note: This function is taken from:
-     * https://github.com/eth-infinitism/account-abstraction/blob/9b5f2e4bb30a81aa30761749d9e2e43fee64c768/contracts/samples/VerifyingPaymaster.sol
-     * and then slightly modified.
      */
     function packWithoutPaymasterAndData(UserOperation calldata userOp) internal pure returns (bytes memory ret) {
-        // lighter signature scheme. must match UserOp.ts#packUserOp
-        bytes calldata pnd = userOp.paymasterAndData;
-        // copy directly the userOp from calldata up to (but not including) the paymasterAndData.
-        // this encoding depends on the ABI encoding of calldata, but is much lighter to copy
-        // than referencing each field separately.
-        assembly {
-
-            let len := sub(sub(pnd.offset, userOp), 32)
-            ret := mload(0x40)
-            mstore(0x40, add(ret, add(len, 32)))
-            mstore(ret, len)
-            calldatacopy(add(ret, 32), userOp, len)
-
-        }
+        
+        address sender = getSender(userOp);
+        uint256 nonce = userOp.nonce;
+        bytes32 hashInitCode = calldataKeccak(userOp.initCode);
+        bytes32 hashCallData = calldataKeccak(userOp.callData);
+        uint256 callGasLimit = userOp.callGasLimit;
+        uint256 verificationGasLimit = userOp.verificationGasLimit;
+        uint256 preVerificationGas = userOp.preVerificationGas;
+        uint256 maxFeePerGas = userOp.maxFeePerGas;
+        uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
+        return abi.encode(
+            sender, nonce,
+            hashInitCode, hashCallData,
+            callGasLimit, verificationGasLimit, preVerificationGas,
+            maxFeePerGas, maxPriorityFeePerGas
+        );
     }
 
     function hash(UserOperation calldata userOp) internal pure returns (bytes32) {
