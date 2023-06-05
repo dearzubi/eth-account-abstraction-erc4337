@@ -8,9 +8,11 @@
     "build": "npm run prebuild && tsc",
     "build:watch": "tsc --watch",
     "compile": "npx hardhat compile --no-typechain",
-    "deploy-token": "npx hardhat run --network localhost dist/src/deploy/deploy-token.js",
-    "deploy-aa": "npx hardhat run --network localhost dist/src/deploy/deploy-aa.js",
+    "deploy-token": "npx hardhat run --network geth dist/src/deploy/deploy-token.js",
+    "deploy-aa": "npx hardhat run --network geth dist/src/deploy/deploy-aa.js",
     "deploy": "npm run compile && npm run deploy-token && npm run deploy-aa",
+    "node": "geth --datadir geth/data --allow-insecure-unlock --unlock 0xABc9ad659aCa9Ed794360De266D4ACd9898a6FD0,0x98BFC7C0BcC6C0a24Cd020144753397F1A56037c --mine --miner.etherbase=0xABc9ad659aCa9Ed794360De266D4ACd9898a6FD0 --password geth/data/keystore/password.txt --http --http.port 8545 --http.api eth,net,web3,debug,personal --http.corsdomain '*'",
+    "bundler": "cd bundler && ./bundler.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -25,6 +27,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.0",
     "ethers": "^5.7.2",
+    "keythereum": "^2.0.0",
     "userop": "^0.2.0"
   }
 }
