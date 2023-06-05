@@ -135,7 +135,11 @@ contract SponsoringPaymaster is BasePaymaster, AccessControl{
     {
         (requiredPreFund); //unused
 
-        bool passed = !hasRole(BLACKLISTED, userOp.getSender()) && isToAddressWhiteListed(userOp.callData);
+        bool passed = !hasRole(BLACKLISTED, userOp.getSender());
+
+        if(userOp.initCode.length == 0){
+            passed = passed && isToAddressWhiteListed(userOp.callData);
+        }
 
         if(isSigRequired) {
 
