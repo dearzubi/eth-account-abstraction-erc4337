@@ -19,6 +19,7 @@ Work in progress...
 4. Run `npm run deploy` to deploy the contracts to the private geth node.
 5. Copy the entry point address from `dist/src/config/config.json` and update it in `bundler/.env` file.
 6. Run `npm run bundler` to start a bundler instance.
+7. Copy `.env.sample` to `.env` and update the value of PHRASE with 12-word mnemonic (using it to generate an EOA in the next step).
 7. Run `dist/src/test/register_simple_account.js` to register a simple account.
 
 Errors and exceptions are highly expected at this point.
