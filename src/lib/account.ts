@@ -1,23 +1,20 @@
 import { ethers } from "ethers";
 import config from "../config/config";
-import {getEntryPoint} from "./entry_point";
+import abiSimpleAccountFactory from "./abi/accounts/simple_account_factory.json";
+import abiSimpleAccount from "./abi/accounts/simple_account.json";
 import {AccountTypes} from "../types";
 
-export const getAccountAddress = async (
-  initCode: string,
-  provider: ethers.providers.JsonRpcProvider
+export const getWalletAddress = async (
+  accountFactory: ethers.Contract, 
+  ownerAddress: string,
+  salt?: ethers.BigNumber
 ): Promise<string> => {
 
-  const entryPointContract = getEntryPoint(provider);
-
-  try{
-    await entryPointContract.callStatic.getSenderAddress(initCode);
-  }
-  catch (error: any){
-    return error?.errorArgs?.sender;
-  }
-  return "";
-
+  return accountFactory.callStatic.getAddress(
+    ownerAddress,
+    salt ? salt: ethers.BigNumber.from(0),
+  );
+  
 }
 
 export const getAccountFactory = (
@@ -30,7 +27,7 @@ export const getAccountFactory = (
     case AccountTypes.Simple:
       return new ethers.Contract(
         config.get("SIMPLE_ACCOUNT_FACTORY_ADDRESS")!.toString(),
-        config.getABI("SIMPLE_ACCOUNT_FACTORY")!,
+        abiSimpleAccountFactory,
         providerOrSigner
     );
 
@@ -51,7 +48,7 @@ export const getAccount = (
     case AccountTypes.Simple:
       return new ethers.Contract(
         address,
-        config.getABI("SIMPLE_ACCOUNT")!,
+        abiSimpleAccount,
         providerOrSigner
     );
     
@@ -61,13 +58,17 @@ export const getAccount = (
 
 }
 
-export const getInitCode = (accountFactory: ethers.Contract, ownerAddress: string): string => {
+export const getInitCode = (
+  accountFactory: ethers.Contract, 
+  ownerAddress: string,
+  salt?: ethers.BigNumber
+): string => {
 
   return ethers.utils.hexConcat([
     accountFactory.address,
     accountFactory.interface.encodeFunctionData("createAccount", [
       ownerAddress,
-      ethers.BigNumber.from(0),
+      salt ? salt: ethers.BigNumber.from(0),
     ]),
   ]);
 
