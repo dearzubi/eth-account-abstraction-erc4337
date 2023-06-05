@@ -1,110 +1,86 @@
-// import { Client, Presets } from "userop";
 import config from "../config/config";
 import { ethers } from "ethers";
-import { getEntryPoint } from "../lib/entry_point";
-import {getPaymaster} from "../lib/paymaster";
-import {getAccountFactory, getInitCode, getAccountAddress} from "../lib/account";
+import UserOpClient from "../lib/userop_client";
+import {getAccountFactory, getInitCode, getWalletAddress} from "../lib/account";
 import UserOp from "../lib/user_op";
-import {gasFee, estimateWalletCreationGas, estimateUserOpGas} from "../utils/gas";
+import {gasFee} from "../utils/gas";
 import { AccountTypes, IGasFee, GasEstimate} from "../types";
+import dotennv from "dotenv";
+dotennv.config();
 
 const main = async () => {
-
-    const userOp = new UserOp();
+    
+    const eoaWallet = ethers.Wallet.fromMnemonic(process.env.PHRASE!);
 
     const provider = new ethers.providers.JsonRpcProvider(config.get("RPC")!.toString());
     const erc4337NodeProvider = new ethers.providers.JsonRpcProvider(config.get("BUNDLER_RPC")!.toString());
-    const entryPoint = getEntryPoint(provider.getSigner());
-    // const paymaster = getPaymaster(provider.getSigner());
-    const simpleAccountFactory = getAccountFactory(AccountTypes.Simple, provider.getSigner());
 
-    const initCode = getInitCode(simpleAccountFactory, (await provider.getSigner().getAddress()));
+    const userOp = new UserOp();
+    const client = new UserOpClient(
+        config.get("ENTRYPOINT_ADDRESS")!.toString(), 
+        provider, 
+        erc4337NodeProvider
+    );    
 
-    userOp.setInitCode(initCode);
+    const simpleAccountFactory = getAccountFactory(AccountTypes.Simple, provider);
 
-    const walletAddress = await getAccountAddress(initCode, provider);
+    //increment the salt to generate more wallets per EOA address
+    const walletSalt = ethers.BigNumber.from(4);
+
+    userOp.setInitCode(getInitCode(simpleAccountFactory, eoaWallet.address, walletSalt));
+
+    const walletAddress = await getWalletAddress(
+        simpleAccountFactory,
+        eoaWallet.address,
+        walletSalt
+    );
 
     userOp.setSender(walletAddress);
 
-    entryPoint.depositTo(walletAddress, {value: ethers.utils.parseEther("0.5")});
+    userOp.setNonce((await client.getWalletNonce(walletAddress)));
 
-    userOp.setNonce((await entryPoint.callStatic.getNonce(walletAddress, 0)).toNumber());
+    userOp.setPaymasterAndData(
+        config.get("PAYMASTER_ADDRESS")!.toString(),
+    )
 
     userOp.setSignature(
-        (await provider.getSigner().signMessage(
-                ethers.utils.arrayify(ethers.utils.keccak256("0xdead"))
-        ))
+        (
+            await eoaWallet.signMessage(ethers.utils.arrayify(ethers.utils.keccak256("0xdead")))
+        )
     );
+    const gFee = await gasFee(provider) as IGasFee;
+    userOp.setMaxFeePerGas(gFee.maxFee);
+    userOp.setMaxPriorityFeePerGas(gFee.maxPriorityFee);
 
-    const gF = await gasFee(provider) as IGasFee;
+    const gasEstimates = await client.estimateUserOpGas(userOp.toJSON()) as GasEstimate;
 
-    userOp.setMaxFeePerGas(gF.maxFee);
-    userOp.setMaxPriorityFeePerGas(gF.maxPriorityFee);
-
-    userOp.incVerificationGasLimit((await estimateWalletCreationGas(provider, initCode)));
-
-    const est = await estimateUserOpGas(erc4337NodeProvider, userOp.toJSON(), entryPoint.address) as GasEstimate;
-
-    userOp.setVerificationGasLimit(est.verificationGas);
-    userOp.setCallGasLimit(est.callGasLimit);
-    userOp.setPreVerificationGas(est.preVerificationGas);
-
-    const userOpHash = await entryPoint.callStatic.getUserOpHash(userOp.toJSON());
+    userOp.setVerificationGasLimit( ethers.BigNumber.from(gasEstimates.verificationGas).add(30000));
+    userOp.setCallGasLimit(gasEstimates.callGasLimit !== "0x" ? gasEstimates.callGasLimit : "0x0");
+    userOp.setPreVerificationGas(ethers.BigNumber.from(gasEstimates.preVerificationGas));
 
     userOp.setSignature(
-        (await provider.getSigner().signMessage(
-                ethers.utils.arrayify(userOpHash)
-        ))
+        (
+            await eoaWallet.signMessage(ethers.utils.arrayify(
+                (await client.getUserOpHash(userOp.toJSON()))
+            ))
+        )
     );
 
     console.log(userOp.get());
 
+    const userOpHash = await client.sendUserOp(userOp.toJSON());
+
+    console.log(userOpHash);
+    
 }
 
-
 main().catch((error) => {
+
+    if(error?.body){
+        console.error(JSON.parse(error?.body).error.message);
+        process.exitCode = 1;
+        return;
+    }
     console.error(error);
     process.exitCode = 1;
 });
-
-
-// console.log(await eip1559GasPrice(provider))
-
-
-// process.exit(0)
-
-
-// console.log(
-//     (await provider.getBalance(provider.getSigner().getAddress())).toString()
-// )
-
-
-// const simpleAccount = await Presets.Builder.SimpleAccount.init(
-//     provider.getSigner(), // Any object compatible with ethers.Signer
-//     config.get("RPC"),
-//     config.get("BUNDLER_RPC"),
-//     config.get("ENTRYPOINT_ADDRESS"),
-//     config.get("ACCOUNT_FACTORY_ADDRESS")
-// );
-
-
-// const client = await Client.init(
-//     config.get("BUNDLER_RPC"),
-//     config.get("ENTRYPOINT_ADDRESS"),
-// );
-
-
-// const res = await client.sendUserOperation(
-//     simpleAccount.execute("0x67d269191c92Caf3cD7723F116c85e6E9bf55933", 1, "0x"),
-//     { onBuild: (op) => console.log("Signed UserOperation:", op) }
-// );
-// console.log(`UserOpHash: ${res.userOpHash}`);
-
-// console.log("Waiting for transaction...");
-// const ev = await res.wait();
-// console.log(`Transaction hash: ${ev?.transactionHash ?? null}`);
-
-
-// console.log(
-//     (await provider.getBalance(provider.getSigner().getAddress())).toString()
-// )
