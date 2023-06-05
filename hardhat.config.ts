@@ -12,8 +12,20 @@ const config: HardhatUserConfig = {
     outDir: "typechain-types",
     target: "ethers-v5",
   },
-  solidity: "0.8.18",
+  solidity: {
+    version: "0.8.18",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
   networks: {
+    geth: {
+      url: "http://localhost:8545",
+      allowUnlimitedContractSize: true,
+    },
     hardhat: {
       allowUnlimitedContractSize: true,
     }
